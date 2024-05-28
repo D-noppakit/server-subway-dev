@@ -37,8 +37,10 @@ app.use(function (req, res, next) {
     next();
 });
 const service_v1 = require('./router/version1/sevice_1');
+const payment = require('./router/version1/payment');
 
 app.use('/api/v1', service_v1);
+app.use('/api/v1/service', payment);
 
 
 app.use((req, res, next) => {
