@@ -39,11 +39,13 @@ app.use(function (req, res, next) {
 const service_v1 = require('./router/version1/sevice_1');
 const payment = require('./router/version1/payment');
 const profile = require('./router/version1/profile');
+const product = require('./router/version1/product');
 const db = require('./dbconfig');
 
 app.use('/api/v1', service_v1);
 app.use('/api/v1/service', payment);
 app.use('/api/v1/profile', profile);
+app.use('/api/v1/product', product);
 
 
 app.use((req, res, next) => {

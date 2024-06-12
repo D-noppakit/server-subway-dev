@@ -1,4 +1,5 @@
 const pgp = require("pg-promise")(/*options*/);
+require('dotenv').config()
 pgp.pg.defaults.ssl = {
     rejectUnauthorized: false,
 };
