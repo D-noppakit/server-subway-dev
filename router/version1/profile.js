@@ -6,6 +6,8 @@ const db = require('../../dbconfig.js');
 const _ = require("lodash");
 const e = require('express');
 const axios = require('axios');
+const crypto = require('crypto');
+
 var CryptoJS = require("crypto-js");
 
 
@@ -40,8 +42,6 @@ app.post('/subway/checkphone', (req, res) => {
                 if(response.data.responseCode == '00')
                 {
                     var listinfo = response.data.resultModel.cardIdInfo;
-                    console.log('response',listinfo)
-
                     var obj = {};
                     for (let i = 0; i < listinfo.length; i++) {
                         const element = listinfo[i];
@@ -209,8 +209,8 @@ app.post('/subway/sendotp', (req, res) => {
                                     var tempf = dt.getSeconds() < 10 ? "0" + dt.getSeconds() : dt.getSeconds();
         
                                     var doingtime = tempa + "/" + tempb + "/" + tempc + " " + tempd + ":" + tempe + ":" + tempf;
-        
-                                    db.any(` insert into subway_temp_login (phoneno, doingtime, otp_ref , unixtime)
+
+                                    db.any(` insert into subway_temp_login (phoneno, doingtime, otp_ref , unixtime )
                                     values ($1,$2,$3,$4) ` , [phoneno , doingtime , response.data.data.OtpKey ,response.data.data.unixTime ])
                                     .then((dataA)=>{
                                         return res.status(200).json({
@@ -245,7 +245,7 @@ app.post('/subway/sendotp', (req, res) => {
                         {
                             return res.status(200).json({
                                 RespCode: 500,
-                                RespMessage: "system error 4",
+                                RespMessage: "transaction not correct",
                             }); 
                         }
                     }).catch((error)=>{
@@ -264,6 +264,7 @@ app.post('/subway/sendotp', (req, res) => {
                     });  
                 }
             }).catch((error)=>{
+                console.log(error)
                 return res.status(200).json({
                     RespCode: 500,
                     RespMessage: "system error 6",
@@ -362,23 +363,24 @@ app.post('/subway/verrifyotp', (req, res) => {
                                         let data = JSON.stringify({
                                             "CardNo": "",
                                             "CitizenId": "",
-                                            "PhoneNo": phoneno
+                                            "PhoneNo": maxPhone
                                         });
                                     
                                         let config = {
                                             method: 'post',
                                             maxBodyLength: Infinity,
-                                            url: 'https://dev-crm-apim-services.pt.co.th/api/Card/ListInfo',
+                                            url: 'https://crm-apim-services.pt.co.th/prd-mloyalty/api/Card/ListInfo',
                                             headers: { 
-                                                'req-key': '9b86bc9f9e46498c9b3ac3fe89ffac03', 
-                                                'Content-Type': 'application/json', 
-                                                'Cookie': 'ApplicationGatewayAffinity=876b491d42740456397805a2f74698fc; ApplicationGatewayAffinityCORS=876b491d42740456397805a2f74698fc'
+                                              'req-key': '9b86bc9f9e46498c9b3ac3fe89ffac03', 
+                                              'Content-Type': 'application/json', 
+                                              'Cookie': 'ApplicationGatewayAffinity=876b491d42740456397805a2f74698fc; ApplicationGatewayAffinityCORS=876b491d42740456397805a2f74698fc'
                                             },
                                             data : data
-                                        };
+                                          };
                                     
                                         axios.request(config)
                                         .then((response) => {
+                                            console.log(response.data)
                                             if(response.data.responseCode == '00')
                                             {
                                                 var listinfo = response.data.resultModel.cardIdInfo;
@@ -409,7 +411,7 @@ app.post('/subway/verrifyotp', (req, res) => {
                                                 var tempf = dt.getSeconds() < 10 ? "0" + dt.getSeconds() : dt.getSeconds();
                     
                                                 var doingtime = tempa + "/" + tempb + "/" + tempc + " " + tempd + ":" + tempe + ":" + tempf;
-                    
+
                                                 db.any(` update subway_member set updatedate = $1 where phoneno = $2 returning * ` , [doingtime , maxPhone])
                                                 .then((daatC)=>{
                                                     return res.status(200).json({
@@ -425,6 +427,7 @@ app.post('/subway/verrifyotp', (req, res) => {
                                                         }
                                                     });  
                                                 }).catch((error)=>{
+                                                    console.log(error)
                                                     return res.status(200).json({
                                                         RespCode: 500,
                                                         RespMessage: "system error3",
@@ -442,6 +445,7 @@ app.post('/subway/verrifyotp', (req, res) => {
                                                 });  
                                             }
                                         }).catch((error)=>{
+                                            console.log(error)
                                             return res.status(200).json({
                                                 RespCode: 500,
                                                 RespMessage: "system error3",
@@ -464,20 +468,20 @@ app.post('/subway/verrifyotp', (req, res) => {
                                         let data = JSON.stringify({
                                             "CardNo": "",
                                             "CitizenId": "",
-                                            "PhoneNo": phoneno
+                                            "PhoneNo": maxPhone
                                         });
                                     
                                         let config = {
                                             method: 'post',
                                             maxBodyLength: Infinity,
-                                            url: 'https://dev-crm-apim-services.pt.co.th/api/Card/ListInfo',
+                                            url: 'https://crm-apim-services.pt.co.th/prd-mloyalty/api/Card/ListInfo',
                                             headers: { 
-                                                'req-key': '9b86bc9f9e46498c9b3ac3fe89ffac03', 
-                                                'Content-Type': 'application/json', 
-                                                'Cookie': 'ApplicationGatewayAffinity=876b491d42740456397805a2f74698fc; ApplicationGatewayAffinityCORS=876b491d42740456397805a2f74698fc'
+                                              'req-key': '9b86bc9f9e46498c9b3ac3fe89ffac03', 
+                                              'Content-Type': 'application/json', 
+                                              'Cookie': 'ApplicationGatewayAffinity=876b491d42740456397805a2f74698fc; ApplicationGatewayAffinityCORS=876b491d42740456397805a2f74698fc'
                                             },
                                             data : data
-                                        };
+                                          };
                                     
                                         axios.request(config)
                                         .then((response) => {
@@ -500,10 +504,11 @@ app.post('/subway/verrifyotp', (req, res) => {
                                                 var cardNormalPoint = obj.cardNormalPoint;
                                                 var cardSpecialPoint = obj.cardSpecialPoint;
                                                 var cardEstampPoint = obj.cardEstampPoint;
+                                                var uuid = crypto.randomUUID();
 
 
-                                                db.any(` insert into subway_member (custname, maxcardno, birthdate, phoneno, token, maxme_statutus, createdate , maxme_wallet)
-                                                values ($1,$2,$3,$4,$5,$6,$7,$8); ` , [customerName , cardNo ,customerBirthDate ,phoneno , '' , maxmeApp , doingtime , maxmeWallet ])
+                                                db.any(` insert into subway_member (custname, maxcardno, birthdate, phoneno, token, maxme_statutus, createdate , maxme_wallet , uuid)
+                                                values ($1,$2,$3,$4,$5,$6,$7,$8,$9); ` , [customerName , cardNo ,customerBirthDate ,maxPhone , '' , maxmeApp , doingtime , maxmeWallet , uuid])
                                                 .then((dataC)=>{
                                                     return res.status(200).json({
                                                         RespCode: 200,
@@ -518,6 +523,7 @@ app.post('/subway/verrifyotp', (req, res) => {
                                                         }
                                                     });  
                                                 }).catch((error)=>{
+                                                    console.log(error)
                                                     return res.status(200).json({
                                                         RespCode: 500,
                                                         RespMessage: "system error3",
@@ -532,6 +538,7 @@ app.post('/subway/verrifyotp', (req, res) => {
                                                 });  
                                             }
                                         }).catch((error)=>{
+                                            console.log(error)
                                             return res.status(200).json({
                                                 RespCode: 500,
                                                 RespMessage: "system error3",
@@ -539,12 +546,14 @@ app.post('/subway/verrifyotp', (req, res) => {
                                         })
                                     }
                                 }).catch((error)=>{
+                                    console.log(error)
                                     return res.status(200).json({
                                         RespCode: 500,
                                         RespMessage: "system error3",
                                     });  
                                 }) 
                             }).catch((error)=>{
+                                console.log(error)
                                 return res.status(200).json({
                                     RespCode: 500,
                                     RespMessage: "system error3",
@@ -574,6 +583,7 @@ app.post('/subway/verrifyotp', (req, res) => {
                     });  
                 }
             }).catch((error)=>{
+                console.log(error)
                 return res.status(200).json({
                     RespCode: 500,
                     RespMessage: "system error3",
@@ -597,25 +607,43 @@ app.post('/subway/verrifyotp', (req, res) => {
 });
 
 
-function ensureToken(req, res , next){
+app.post('/subway/getprofilemember', (req, res) => {
+    try {
+        var phoneno = _.get(req, ["body", "phoneno"]);
+        var token = _.get(req, ["body", "token"]);
 
-    const bearerHeader =  _.get(req, ["headers","authorization"]);
+        db.any(` select uuid , custname , birthdate , phoneno , maxme_statutus , maxme_wallet  from subway_member where phoneno = $1 ` , [phoneno])
+        .then((dataA)=>{
+            if(dataA && dataA[0])
+            {
+                return res.status(200).json({
+                    RespCode: 200,
+                    RespMessage: "not found customer",
+                });  
+            }
+            else
+            {
+                return res.status(200).json({
+                    RespCode: 401,
+                    RespMessage: "not found customer",
+                });  
+            }
+        }).catch((error)=>{
+            return res.status(200).json({
+                RespCode: 500,
+                RespMessage: "system error3",
+            });  
+        })
+    } catch (error) {
+        console.log(error)
+        return res.status(200).json({
+            RespCode: 500,
+            RespMessage: "system error3",
+        });    
+    }
+});
 
-    if(bearerHeader !== undefined)
-    {
-      const bearer = bearerHeader.split(" ");
-      const bearerToken = bearer[1];
-      req.token = bearerToken;
-      next()
-    }
-    else
-    {
-      return res.status(400).json({
-        RespCode: "400",
-        RespMessage: "authorization not corret",
-      });
-    }
-}
+
 
 
 module.exports = app;
