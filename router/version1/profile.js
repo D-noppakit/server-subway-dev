@@ -129,6 +129,8 @@ app.post('/subway/sendotp', (req, res) => {
                     }
                 }
 
+                check_flag = true;
+
                 if(check_flag)
                 {
                     var dataphone = JSON.stringify({
@@ -441,7 +443,7 @@ app.post('/subway/verrifyotp', (req, res) => {
                                             {
                                                 return res.status(200).json({
                                                     RespCode: 500,
-                                                    RespMessage: "system error3",
+                                                    RespMessage: "system error31",
                                                 });  
                                             }
                                         }).catch((error)=>{
@@ -534,7 +536,7 @@ app.post('/subway/verrifyotp', (req, res) => {
                                             {
                                                 return res.status(200).json({
                                                     RespCode: 500,
-                                                    RespMessage: "system error3",
+                                                    RespMessage: "system error35",
                                                 });  
                                             }
                                         }).catch((error)=>{
@@ -564,7 +566,7 @@ app.post('/subway/verrifyotp', (req, res) => {
                         {
                             return res.status(200).json({
                                 RespCode: 500,
-                                RespMessage: "system error3",
+                                RespMessage: "system error34",
                             });  
                         }
                     }).catch((error)=>{
@@ -579,7 +581,7 @@ app.post('/subway/verrifyotp', (req, res) => {
                 {
                     return res.status(200).json({
                         RespCode: 500,
-                        RespMessage: "system error3",
+                        RespMessage: "system error32",
                     });  
                 }
             }).catch((error)=>{
@@ -594,7 +596,7 @@ app.post('/subway/verrifyotp', (req, res) => {
         {
             return res.status(200).json({
                 RespCode: 500,
-                RespMessage: "system error3",
+                RespMessage: "system error33",
             });  
         }
     } catch (error) {
