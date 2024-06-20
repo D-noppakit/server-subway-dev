@@ -647,5 +647,165 @@ app.post('/subway/getprofilemember', (req, res) => {
 
 
 
+app.post('/subway/sendotp_guest', (req, res) => {
+    try {
+
+        Date.prototype.addHours = function (h) {
+            this.setHours(this.getHours() + h);
+            return this;
+        };
+
+        var phoneno = _.get(req, ["body", "phoneno"]);
+
+        if(phoneno && phoneno.length == 10)
+        {
+
+            db.any(` select * from subway_temp_login where phoneno = $1 order by id desc limit 1 ` , [phoneno])
+            .then((datacheck)=>{
+                var check_flag = true;
+                if(datacheck && datacheck[0])
+                {
+                    check_flag = false;
+                    var house_pre = datacheck[0].doingtime;
+        
+                    var d1 = house_pre.split(' ');
+                    var d2 = d1[0].split('/')
+                    var d3 = d2[2] + '-' + d2[1] + '-' + d2[0]
+                    var d4 = d1[1].split(':')
+        
+                    // var date_now = new Date().addHours(7);
+                    var date_now = new Date();
+        
+                    var date_check = new Date(d3);
+                    date_check.setHours(d4[0]);
+                    date_check.setMinutes(d4[1]);
+                    date_check.setSeconds(d4[2]);
+                    
+                    date_check.setMinutes(date_check.getMinutes() + 5);
+                    
+        
+                    if (date_now.getTime() > date_check.getTime()) {
+                        check_flag = true;
+                    }
+                }
+
+                check_flag = true;
+
+                if(check_flag)
+                {
+                  
+                    var unixTime = Date.now();
+                    const URL_lineOTP = "https://crm-apim-services.pt.co.th/Line-api/LineBC.asmx/lineOTP";
+
+                    var temp =`{"maxPhone":"` + phoneno + `", "unixTime":"` + unixTime +`"}`;
+
+                    const key = CryptoJS.enc.Utf8.parse("A5lpsRpw0d@paAbT9sIqEmWslCxkrxaE"); 
+                    const iv = CryptoJS.enc.Utf8.parse("eTxUr@qMSpfs0w+J"); 
+
+                    function Encrypt(data) {
+                        let srcs = CryptoJS.enc.Utf8.parse(data);
+                        let encrypted = CryptoJS.AES.encrypt(srcs, key, {
+                        iv: iv,
+                        mode: CryptoJS.mode.CBC,
+                        padding: CryptoJS.pad.Pkcs7,
+                        });
+                        return encrypted.toString();
+                    }
+
+                    var datax = Encrypt(temp);
+                    var axios = require("axios");
+                    var qs = require("qs");
+                    var data = qs.stringify({
+                        jsonReq: datax,
+                        sourceData: 24,
+                        SOURCE_DATA: 24,
+                    });
+
+                    var config = {
+                        method: "post",
+                        url: URL_lineOTP,
+                        headers: {
+                            "req-key": "9b86bc9f9e46498c9b3ac3fe89ffac03",
+                            token: "M@xc@rD2@21",
+                            "Content-Type": "application/x-www-form-urlencoded",
+                            Cookie:
+                            "ApplicationGatewayAffinityCORS=876b491d42740456397805a2f74698fc; ApplicationGatewayAffinity=876b491d42740456397805a2f74698fc",
+                        },
+                        data: data,
+                    };
+                    axios(config).
+                    then(response => {
+                        if(response.data.response && response.data.response.resCode == '00')
+                        {
+                            // var dt = new Date().addHours(7);
+                            var dt = new Date();
+                                                
+                            var tempa = dt.getDate() < 10 ? "0" + dt.getDate() : dt.getDate();
+                            var tempb = dt.getMonth() + 1 < 10 ? "0" + (dt.getMonth() + 1) : dt.getMonth() + 1;
+                            var tempc = dt.getFullYear();
+                            var tempd = dt.getHours() < 10 ? "0" + dt.getHours() : dt.getHours();
+                            var tempe = dt.getMinutes() < 10 ? "0" + dt.getMinutes() : dt.getMinutes();
+                            var tempf = dt.getSeconds() < 10 ? "0" + dt.getSeconds() : dt.getSeconds();
+
+                            var doingtime = tempa + "/" + tempb + "/" + tempc + " " + tempd + ":" + tempe + ":" + tempf;
+
+                            db.any(` insert into subway_temp_login (phoneno, doingtime, otp_ref , unixtime )
+                            values ($1,$2,$3,$4) ` , [phoneno , doingtime , response.data.data.OtpKey ,response.data.data.unixTime ])
+                            .then((dataA)=>{
+                                return res.status(200).json({
+                                    RespCode: 200,
+                                    RespMessage: "Success",
+                                    result :response.data.data
+                                }); 
+                            }).catch((error)=>{
+                                console.log(error)
+                                return res.status(200).json({
+                                    RespCode: 500,
+                                    RespMessage: "system error 1",
+                                });    
+                            })
+                        }
+                        else
+                        {
+                            return res.status(200).json({
+                                RespCode: 500,
+                                RespMessage: "system error 2",
+                            });    
+                        }
+                    }).catch(error => {
+                        console.log(error)
+                        return res.status(200).json({
+                            RespCode: 500,
+                            RespMessage: "system error 3",
+                        });    
+                    });
+                        
+                }
+                else
+                {
+                    return res.status(200).json({
+                        RespCode: 500,
+                        RespMessage: "limit otp",
+                    });  
+                }
+            }).catch((error)=>{
+                console.log(error)
+                return res.status(200).json({
+                    RespCode: 500,
+                    RespMessage: "system error 6",
+                });    
+            })
+        }
+    } catch (error) {
+        console.log(error)
+        return res.status(200).json({
+            RespCode: 500,
+            RespMessage: "system error 6",
+        });    
+    }
+});
+
+
+
 
 module.exports = app;
