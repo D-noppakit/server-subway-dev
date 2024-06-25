@@ -2,7 +2,13 @@ const express = require("express");
 const app = express.Router();
 const _ = require("lodash");
 const db = require("../../dbconfig.js");
+var masterItem;
 
+const getMasterItem = async () => {
+  masterItem = await db.any(`select * from master_product`);
+}
+
+getMasterItem();
 app.post("/allproduct", async (req, res) => {
   // res.send('Welcome, ' + req.user.displayName + '! ' + req.user.id + '!');
   // select  'S001' as shop_code,itemcode,th_name,en_name,th_des,en_des,depcode,catcode,price_eat_in,price_drive_thru,price_take_away,subset,itemflag,img from master_product
@@ -27,10 +33,10 @@ app.post("/allproductbyshop", async (req, res) => {
         `select * from master_condition_product_by_shop where shopcode = $1`,
         [checkshopcode.shopcode]
       );
-      let uniqueProductByShop = await db.any(
-        `select * from master_condition_product_by_shop where shopcode = $1`,
-        [checkshopcode.shopcode]
-      );
+      // let uniqueProductByShop = await db.any(
+      //   `select * from master_condition_product_by_shop where shopcode = $1`,
+      //   [checkshopcode.shopcode]
+      // );
       resultConditionByShop.forEach(element => {
         // console.log(element);
         let indexItem = result.findIndex(
@@ -82,9 +88,13 @@ app.post("/byshop/promotionhotdeal", async (req, res) => {
 
     let resultproduct = await db.any(`SELECT * FROM master_container where order_row = 1 or order_row = 2`, [])
 
-    let result = await db.any(
-      `select '${shopcode}' as shopcode,itemcode,th_name,en_name,th_des,en_des,depcode,catcode,price_eat_in,price_drive_thru,price_take_away,subset,itemflag,img from master_product`
-    );
+    let result = masterItem.map(obj => ({
+      ...obj,
+      shop: shopcode
+    }));
+    // let result = await db.any(
+    //   `select '${shopcode}' as shopcode,itemcode,th_name,en_name,th_des,en_des,depcode,catcode,price_eat_in,price_drive_thru,price_take_away,subset,itemflag,img from master_product`
+    // );
     let resultConditionByShop = await db.any(
       `select * from master_condition_product_by_shop where shopcode = $1`,
       [shopcode]
@@ -118,10 +128,10 @@ app.post("/byshop/promotionhotdeal", async (req, res) => {
           min: item.min,
           max: item.max,
           need: item.need,
-          selectType: item.min == 1 && item.min == item.max ? 'radiobox':'checkbox'
+          selectType: item.min == 1 && item.min == item.max ? 'radiobox' : 'checkbox'
         };
       }
-      let detailItem = result.find(master => item.subitemcode == master.itemcode )
+      let detailItem = result.find(master => item.subitemcode == master.itemcode)
       acc[item.itemcode][groupKey].listitem.push({
         subitemcode: item.subitemcode,
         addon: item.addon,
@@ -144,19 +154,19 @@ app.post("/byshop/promotionhotdeal", async (req, res) => {
         let detailItem = result.find(
           master => master.itemcode === element2.sku
         );
-        if(detailItem.subset === true && groupedResult.hasOwnProperty(element2.sku)){
+        if (detailItem.subset === true && groupedResult.hasOwnProperty(element2.sku)) {
           detailItem.listitem = groupedResult[element2.sku]
-          
+
         }
-        if(element.order_row == 1){
+        if (element.order_row == 1) {
           fresult.promo.push(detailItem)
-        }else{
+        } else {
           fresult.hotdeal.push(detailItem)
 
         }
 
       }
-      
+
     }
 
     // let fresult = {
@@ -197,6 +207,59 @@ app.post("/byshop/promotionhotdeal", async (req, res) => {
     // }
 
     return res.status(200).json({ ms: "good", result: fresult });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ code: "500" });
+  }
+})
+
+app.post("/byshop/getList", async (req, res) => {
+  const body = _.get(req, ["body"]);
+  try {
+    let shopcode = body.shopcode
+    let result = masterItem.map(obj => ({
+      ...obj,
+      shop: shopcode
+    }));
+    const { DateTime } = require('luxon');
+    var dt = DateTime.now().setZone("Asia/Bangkok");
+    // console.log("date", dt.toFormat('yyyy-MM-dd'))
+    // console.log("time", dt.toFormat('HH:mm:ss'))
+    let resultConditionByShop = await db.any(
+      `select * from master_condition_product_by_shop where shopcode = $1`,
+      [shopcode]
+    );
+    resultConditionByShop.forEach(element => {
+      let indexItem = result.findIndex(
+        master => master.itemcode === element.itemcode
+      );
+      result[indexItem].itemflag = element.itemflag;
+      result[indexItem].price_eat_in = element.price_eat_in;
+      result[indexItem].price_drive_thru = element.price_drive_thru;
+      result[indexItem].price_take_away = element.price_take_away;
+    });
+
+    result = result.filter((x) => x.itemflag == true)
+    let resultGroup = await db.any(`select container_name_th,container_name_en,list_data,icon,text_color 
+      from master_container 
+      where start_date < $1 and end_date > $1 and time_start < $2 and end_time > $2
+      order by order_row
+    `,[dt.toFormat('yyyy-MM-dd'),dt.toFormat('HH:mm:ss')])
+    for (let index = 0; index < resultGroup.length; index++) {
+      const element = resultGroup[index];
+      for (let index2 = 0; index2 < element.list_data.length; index2++) {
+        const element2 = element.list_data[index2];
+        let item = masterItem.find(x => element2.sku == x.itemcode) 
+
+        resultGroup[index].list_data[index2].price = item.price_eat_in
+        resultGroup[index].list_data[index2].img = item.img
+        resultGroup[index].list_data[index2].th_name = item.th_name
+        resultGroup[index].list_data[index2].en_name = item.en_name
+      }
+    }
+    // console.log("result",result)
+    return res.status(200).json({ ms: "good", result: resultGroup });
+
   } catch (error) {
     console.log(error);
     return res.status(500).json({ code: "500" });
