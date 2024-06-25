@@ -70,6 +70,7 @@ app.post("/allproductbyshop", async (req, res) => {
         });
         return acc;
       }, {});
+
       // console.log("resultConditionByShop",resultConditionByShop)
       return res.status(200).json({ code: "200", result, groupedResult });
     } else {
@@ -240,16 +241,16 @@ app.post("/byshop/getList", async (req, res) => {
     });
 
     result = result.filter((x) => x.itemflag == true)
-    let resultGroup = await db.any(`select container_name_th,container_name_en,list_data,icon,text_color 
+    let resultGroup = await db.any(`select container_name_th,container_name_en,list_data,icon,text_color,con_type
       from master_container 
       where start_date < $1 and end_date > $1 and time_start < $2 and end_time > $2
       order by order_row
-    `,[dt.toFormat('yyyy-MM-dd'),dt.toFormat('HH:mm:ss')])
+    `, [dt.toFormat('yyyy-MM-dd'), dt.toFormat('HH:mm:ss')])
     for (let index = 0; index < resultGroup.length; index++) {
       const element = resultGroup[index];
       for (let index2 = 0; index2 < element.list_data.length; index2++) {
         const element2 = element.list_data[index2];
-        let item = masterItem.find(x => element2.sku == x.itemcode) 
+        let item = masterItem.find(x => element2.sku == x.itemcode)
 
         resultGroup[index].list_data[index2].price = item.price_eat_in
         resultGroup[index].list_data[index2].img = item.img
@@ -259,6 +260,83 @@ app.post("/byshop/getList", async (req, res) => {
     }
     // console.log("result",result)
     return res.status(200).json({ ms: "good", result: resultGroup });
+
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ code: "500" });
+  }
+})
+
+app.post("/byshop/itemdetail", async (req, res) => {
+  const body = _.get(req, ["body"]);
+  try {
+    let shopcode = body.shopcode
+    let result = masterItem.map(obj => ({
+      ...obj,
+      shop: shopcode
+    }));
+    let item = result.find((e) => (body.item == e.itemcode))
+    let resultConditionByShop = await db.any(
+      `select * from master_condition_product_by_shop where shopcode = $1`,
+      [shopcode]
+    );
+    resultConditionByShop.forEach(element => {
+      // console.log(element);
+      let indexItem = result.findIndex(
+        master => master.itemcode === element.itemcode
+      );
+
+      result[indexItem].itemflag = element.itemflag;
+      result[indexItem].price_eat_in = element.price_eat_in;
+      result[indexItem].price_drive_thru = element.price_drive_thru;
+      result[indexItem].price_take_away = element.price_take_away;
+    });
+   
+
+    if (item.subset == true) {
+      let resultItemSet = await db.any(`select * from master_set_product where itemcode = $1`, [item.itemcode]);
+      const groupedResult = resultItemSet.reduce((acc, item) => {
+        if (!acc[item.itemcode]) {
+          acc[item.itemcode] = {};
+        }
+        const groupKey = `group${item.suborder}`;
+        if (!acc[item.itemcode][groupKey]) {
+          acc[item.itemcode][groupKey] = {
+            listitem: [],
+            min: item.min,
+            max: item.max,
+            need: item.need,
+            type: parseInt(item.min) == 1 && parseInt(item.max) == parseInt(item.min) ? 'radio' : 'checkbox'
+          };
+        }
+        let detail = result.find((e)=>e.itemcode == item.subitemcode)
+        acc[item.itemcode][groupKey].listitem.push({
+          subitemcode: item.subitemcode,
+          addon: item.addon,
+          recommend: item.recommend,
+          price: detail.price_eat_in,
+          th_name: detail.th_name,
+          en_name: detail.en_name
+        });
+        return acc;
+      }, {});
+
+
+      const sortedData = Object.keys(groupedResult[item.itemcode])
+        .filter(key => key.startsWith('group'))
+        .sort((a, b) => parseInt(a.slice(5)) - parseInt(b.slice(5)))
+        .reduce((result, key) => {
+          result[key] = groupedResult[item.itemcode][key];
+          return result;
+        }, {});
+
+        item.subitem = sortedData
+      return res.status(200).json({ ms: "good", result: item });
+
+    }
+
+
+
 
   } catch (error) {
     console.log(error);
