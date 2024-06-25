@@ -306,7 +306,8 @@ app.post("/byshop/itemdetail", async (req, res) => {
             min: item.min,
             max: item.max,
             need: item.need,
-            type: parseInt(item.min) == 1 && parseInt(item.max) == parseInt(item.min) ? 'radio' : 'checkbox'
+            type: parseInt(item.min) == 1 && parseInt(item.max) == parseInt(item.min) ? 'radio' : 'checkbox',
+            gropname:  `group${item.suborder}`
           };
         }
         let detail = result.find((e)=>e.itemcode == item.subitemcode)
