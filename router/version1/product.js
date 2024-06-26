@@ -291,27 +291,67 @@ app.post("/byshop/itemdetail", async (req, res) => {
       result[indexItem].price_drive_thru = element.price_drive_thru;
       result[indexItem].price_take_away = element.price_take_away;
     });
-   
+
 
     if (item.subset == true) {
       let resultItemSet = await db.any(`select * from master_set_product where itemcode = $1`, [item.itemcode]);
+      // old version
+      // const groupedResult = resultItemSet.reduce((acc, item) => {
+      //   if (!acc[item.itemcode]) {
+      //     acc[item.itemcode] = {};
+      //   }
+      //   const groupKey = `group${item.suborder}`;
+      //   if (!acc[item.itemcode][groupKey]) {
+      //     acc[item.itemcode][groupKey] = {
+      //       listitem: [],
+      //       min: item.min,
+      //       max: item.max,
+      //       need: item.need,
+      //       type: parseInt(item.min) == 1 && parseInt(item.max) == parseInt(item.min) ? 'radio' : 'checkbox',
+      //       gropname:  `group${item.suborder}`
+      //     };
+      //   }
+      //   let detail = result.find((e)=>e.itemcode == item.subitemcode)
+      //   acc[item.itemcode][groupKey].listitem.push({
+      //     subitemcode: item.subitemcode,
+      //     addon: item.addon,
+      //     recommend: item.recommend,
+      //     price: detail.price_eat_in,
+      //     th_name: detail.th_name,
+      //     en_name: detail.en_name
+      //   });
+      //   return acc;
+      // }, {});
+      // const sortedData = Object.keys(groupedResult[item.itemcode])
+      //   .filter(key => key.startsWith('group'))
+      //   .sort((a, b) => parseInt(a.slice(5)) - parseInt(b.slice(5)))
+      //   .reduce((result, key) => {
+      //     result[key] = groupedResult[item.itemcode][key];
+      //     return result;
+      //   }, {});
+      // item.subitem = sortedData
+
+      // new version
       const groupedResult = resultItemSet.reduce((acc, item) => {
         if (!acc[item.itemcode]) {
-          acc[item.itemcode] = {};
+          acc[item.itemcode] = [];
         }
-        const groupKey = `group${item.suborder}`;
-        if (!acc[item.itemcode][groupKey]) {
-          acc[item.itemcode][groupKey] = {
+        let groupname = `group${item.suborder}`
+
+        if (!acc[item.itemcode].find(x=>x.groupname == groupname) ) {
+          let obj = {
+            groupname: `group${item.suborder}`,
             listitem: [],
             min: item.min,
             max: item.max,
             need: item.need,
             type: parseInt(item.min) == 1 && parseInt(item.max) == parseInt(item.min) ? 'radio' : 'checkbox',
-            gropname:  `group${item.suborder}`
-          };
+          }
+          acc[item.itemcode].push(obj)
         }
         let detail = result.find((e)=>e.itemcode == item.subitemcode)
-        acc[item.itemcode][groupKey].listitem.push({
+        let curIndex = acc[item.itemcode].findIndex(x=>x.groupname == groupname)
+        acc[item.itemcode][curIndex].listitem.push({
           subitemcode: item.subitemcode,
           addon: item.addon,
           recommend: item.recommend,
@@ -322,22 +362,47 @@ app.post("/byshop/itemdetail", async (req, res) => {
         return acc;
       }, {});
 
+      const sortedData = groupedResult[item.itemcode].sort((a, b) => {
+        if (a.groupname < b.groupname) {
+          return -1;
+        }
+        if (a.groupname > b.groupname) {
+          return 1;
+        }
+        return 0;
+      });
+      
+      // console.log(sortedData);
+      // console.log("groupedResult",groupedResult)
+      item.subitem = sortedData
 
-      const sortedData = Object.keys(groupedResult[item.itemcode])
-        .filter(key => key.startsWith('group'))
-        .sort((a, b) => parseInt(a.slice(5)) - parseInt(b.slice(5)))
-        .reduce((result, key) => {
-          result[key] = groupedResult[item.itemcode][key];
-          return result;
-        }, {});
-
-        item.subitem = sortedData
       return res.status(200).json({ ms: "good", result: item });
 
     }
 
 
 
+
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ code: "500" });
+  }
+})
+
+app.post("/byshop/getcat", async (req, res) => {
+  const body = _.get(req, ["body"]);
+  try {
+    const { DateTime } = require('luxon');
+    var dt = DateTime.now().setZone("Asia/Bangkok");
+    // console.log("date", dt.toFormat('yyyy-MM-dd'))
+    // console.log("time", dt.toFormat('HH:mm:ss'))
+    let resultGroup = await db.any(`select container_name_th,container_name_en,list_data,icon,text_color,con_type
+      from master_container 
+      where start_date < $1 and end_date > $1 and time_start < $2 and end_time > $2
+      order by order_row
+    `, [dt.toFormat('yyyy-MM-dd'), dt.toFormat('HH:mm:ss')])
+
+    return res.status(200).json({ ms: "good", result: resultGroup });
 
   } catch (error) {
     console.log(error);
