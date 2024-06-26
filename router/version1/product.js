@@ -340,6 +340,7 @@ app.post("/byshop/itemdetail", async (req, res) => {
 
         if (!acc[item.itemcode].find(x=>x.groupname == groupname) ) {
           let obj = {
+            groupid: crypto.randomUUID(),
             groupname: `group${item.suborder}`,
             listitem: [],
             min: item.min,
