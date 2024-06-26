@@ -355,7 +355,7 @@ app.post("/byshop/itemdetail", async (req, res) => {
           subitemcode: item.subitemcode,
           addon: item.addon,
           recommend: item.recommend,
-          img: item.img,
+          img: detail.img,
           price: detail.price_eat_in,
           th_name: detail.th_name,
           en_name: detail.en_name,
