@@ -332,6 +332,7 @@ app.post("/byshop/itemdetail", async (req, res) => {
       // item.subitem = sortedData
 
       // new version
+      let gen_groupid = 0
       const groupedResult = resultItemSet.reduce((acc, item) => {
         if (!acc[item.itemcode]) {
           acc[item.itemcode] = [];
@@ -340,7 +341,7 @@ app.post("/byshop/itemdetail", async (req, res) => {
 
         if (!acc[item.itemcode].find(x=>x.groupname == groupname) ) {
           let obj = {
-            groupid: crypto.randomUUID(),
+            groupid: gen_groupid++ ,
             groupname: `group${item.suborder}`,
             listitem: [],
             min: item.min,
